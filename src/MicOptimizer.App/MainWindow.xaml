@@ -100,6 +100,8 @@
                 <ToggleButton Style="{StaticResource Pill}" IsChecked="{Binding Bypass}" AutomationProperties.Name="Bypass"
                               ToolTip="Send the microphone through unprocessed, to compare"/>
                 <TextBlock Text="Bypass" Margin="8,0,24,0" VerticalAlignment="Center"/>
+                <Button Content="Calibrate…" Command="{Binding CalibrateCommand}" Margin="0,0,10,0"
+                        ToolTip="Measure your room, keyboard and voice, and set the gate for you"/>
                 <Button Style="{StaticResource RunButton}" Command="{Binding ToggleRunCommand}"/>
             </StackPanel>
         </Grid>

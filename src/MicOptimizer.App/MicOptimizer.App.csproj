@@ -17,7 +17,7 @@
     <AssemblyName>MicOptimizer</AssemblyName>
     <RootNamespace>MicOptimizer.App</RootNamespace>
     <Product>Mic Optimizer</Product>
-    <Version>1.1.0</Version>
+    <Version>1.2.1</Version>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>
 

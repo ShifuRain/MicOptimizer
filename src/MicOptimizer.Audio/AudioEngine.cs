@@ -43,6 +43,18 @@ public sealed class AudioEngine : IDisposable
     private Timer? _cushionTuner;
     private int _lastUnderruns;
 
+    /// <summary>Receives each block of microphone audio before any processing. Runs on the audio thread: keep it quick.</summary>
+    public delegate void InputTapHandler(ReadOnlySpan<float> samples);
+
+    /// <summary>Set to listen to the raw microphone (for calibration); null to stop.</summary>
+    public InputTapHandler? InputTap { get; set; }
+
+    /// <summary>While true the output is silent (the meters and the tap keep working).</summary>
+    public volatile bool OutputMuted;
+
+    /// <summary>The rate everything runs at (the output device's rate), once started.</summary>
+    public int SampleRate => _rate;
+
     public ProcessingChain? Chain { get; private set; }
     public bool IsRunning => _input is not null;
     public LatencyMode ActiveMode { get; private set; }
@@ -304,6 +316,7 @@ public sealed class AudioEngine : IDisposable
     private void Process(ProcessingChain chain, ElasticBuffer elastic, Span<float> mono)
     {
         if (mono.IsEmpty) return;   // WASAPI also signals empty packets
+        InputTap?.Invoke(mono);     // the untouched microphone signal, for calibration
         float inPeak = Peak(mono);
         chain.Process(mono);
         float outPeak = Peak(mono);
@@ -312,6 +325,7 @@ public sealed class AudioEngine : IDisposable
         if (inPeak > _inPeak) _inPeak = inPeak;
         if (outPeak > _outPeak) _outPeak = outPeak;
 
+        if (OutputMuted) mono.Clear();   // calibration: don't let a call or stream hear the test sounds
         elastic.Write(mono);
     }
 

@@ -1,0 +1,186 @@
+<Window x:Class="MicOptimizer.App.CalibrationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:MicOptimizer.App.ViewModels"
+        xmlns:ctl="clr-namespace:MicOptimizer.App.Controls"
+        Title="Calibrate for my voice" Icon="Assets/app.ico" Width="760" Height="660" MinWidth="640" MinHeight="560"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Background="{StaticResource PanelBrush}" FontFamily="{StaticResource UiFont}" FontSize="13">
+
+    <Window.Resources>
+        <!-- One dot in the step bar: grey while waiting, inked when current, struck through when skipped -->
+        <DataTemplate DataType="{x:Type vm:StepChip}">
+            <Border x:Name="Chip" CornerRadius="12" Padding="10,3" Margin="0,0,6,0" BorderThickness="1"
+                    Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}">
+                <TextBlock x:Name="Label" Text="{Binding Title}" FontSize="11.5" Foreground="{StaticResource InkMutedBrush}" TextWrapping="NoWrap"/>
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsDone}" Value="True">
+                    <Setter TargetName="Label" Property="Foreground" Value="{StaticResource InkBrush}"/>
+                    <Setter TargetName="Chip" Property="Background" Value="{StaticResource SurfaceDeepBrush}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsSkipped}" Value="True">
+                    <Setter TargetName="Label" Property="TextDecorations" Value="Strikethrough"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                    <Setter TargetName="Chip" Property="BorderBrush" Value="{StaticResource InkBrush}"/>
+                    <Setter TargetName="Chip" Property="Background" Value="{StaticResource AccentSoftBrush}"/>
+                    <Setter TargetName="Label" Property="Foreground" Value="{StaticResource InkBrush}"/>
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:ChangeLine}">
+            <Grid Margin="0,0,0,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="170"/>
+                    <ColumnDefinition Width="90"/>
+                    <ColumnDefinition Width="30"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Label}"/>
+                <TextBlock Grid.Column="1" Text="{Binding Before}" Style="{StaticResource Readout}" Foreground="{StaticResource InkMutedBrush}"/>
+                <TextBlock Grid.Column="2" Text="→" Foreground="{StaticResource InkMutedBrush}"/>
+                <TextBlock Grid.Column="3" Text="{Binding After}" Style="{StaticResource Readout}" FontWeight="Bold"/>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:AdviceLine}">
+            <Border Margin="0,0,0,8" Padding="12,8" CornerRadius="4" BorderThickness="3,0,0,0"
+                    Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsWarning}" Value="True">
+                                <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <TextBlock Text="{Binding Text}"/>
+            </Border>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid Margin="26,22,26,20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="CALIBRATE FOR MY VOICE" FontSize="12.5" FontWeight="SemiBold" Style="{StaticResource Eyebrow}"
+                       Foreground="{StaticResource InkBrush}"/>
+        </StackPanel>
+
+        <ItemsControl Grid.Row="1" ItemsSource="{Binding Chips}" Margin="0,12,0,0" IsTabStop="False">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+        </ItemsControl>
+
+        <Grid Grid.Row="2" Margin="0,22,0,0">
+            <!-- 1. Introduction -->
+            <StackPanel Visibility="{Binding IsIntro, Converter={StaticResource BoolToVis}}">
+                <TextBlock Text="Teach Mic Optimizer your room and your voice" FontSize="22" FontWeight="Bold" Margin="0,0,0,12"/>
+                <TextBlock Margin="0,0,0,14"
+                           Text="You will make a few sounds, about 40 seconds in all. Mic Optimizer measures them and works out where the gate should open and close, so your keyboard and fan stay out while your quietest speech comes through."/>
+                <TextBlock Text="• Nothing is sent to your call or stream while it listens." Margin="0,0,0,4"/>
+                <TextBlock Text="• The recordings stay in memory and are thrown away afterwards." Margin="0,0,0,4"/>
+                <TextBlock Text="• The typing, whisper and shouting steps can be skipped." Margin="0,0,0,4"/>
+                <TextBlock Text="• Nothing changes until you press Apply, and you can still Revert." Margin="0,0,0,18"/>
+                <TextBlock Style="{StaticResource Caption}"
+                           Text="Sit where you normally sit, with the microphone where you normally have it. Calibrate again if you move the mic."/>
+            </StackPanel>
+
+            <!-- 2. Recording a step -->
+            <Grid Visibility="{Binding IsCapturing, Converter={StaticResource BoolToVis}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="{Binding StepHeading}" Style="{StaticResource Eyebrow}"/>
+                    <TextBlock Text="{Binding StepTitle}" FontSize="28" FontWeight="Bold" Margin="0,4,0,10"/>
+                    <TextBlock Text="{Binding Instruction}" FontSize="15" Margin="0,0,0,22"/>
+                    <TextBlock Text="{Binding Countdown}" Style="{StaticResource Readout}" FontSize="26" Margin="0,0,0,12"/>
+                    <ProgressBar Value="{Binding Progress, Mode=OneWay}" Margin="0,0,24,14"/>
+                    <TextBlock Text="{Binding SkipHint}" Style="{StaticResource Caption}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Margin="16,0,0,0" HorizontalAlignment="Center">
+                    <TextBlock Text="LEVEL" Style="{StaticResource Eyebrow}" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                    <ctl:Meter Width="26" Height="230" Value="{Binding Level}"/>
+                    <TextBlock Style="{StaticResource Readout}" HorizontalAlignment="Center" Margin="0,6,0,0"
+                               Text="{Binding Level, StringFormat='{}{0:0} dB'}"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- 3. Working it out -->
+            <StackPanel Visibility="{Binding IsAnalyzing, Converter={StaticResource BoolToVis}}" VerticalAlignment="Center">
+                <TextBlock Text="Working out your settings…" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/>
+                <TextBlock Text="This takes a few seconds." Style="{StaticResource Caption}" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+            </StackPanel>
+
+            <!-- 4. The result -->
+            <ScrollViewer Visibility="{Binding IsResult, Converter={StaticResource BoolToVis}}" VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled" Padding="0,0,12,0">
+                <StackPanel>
+                    <TextBlock Text="Your settings" FontSize="22" FontWeight="Bold" Margin="0,0,0,12"/>
+
+                    <StackPanel Visibility="{Binding ShowBiasChoice, Converter={StaticResource BoolToVis}}" Margin="0,0,0,16">
+                        <TextBlock Style="{StaticResource Caption}" Foreground="{StaticResource InkBrush}" Margin="0,0,0,6"
+                                   Text="Typing and your quietest speech overlap a little. Which should win?"/>
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton Style="{StaticResource Chip}" GroupName="bias" Content="Keep quiet speech" IsChecked="{Binding BiasKeepQuiet}"/>
+                            <RadioButton Style="{StaticResource Chip}" GroupName="bias" Content="Balanced" IsChecked="{Binding BiasBalanced}"/>
+                            <RadioButton Style="{StaticResource Chip}" GroupName="bias" Content="Block more noise" IsChecked="{Binding BiasBlockNoise}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Border Padding="14,12" CornerRadius="6" Margin="0,0,0,16" BorderThickness="1"
+                            Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}">
+                        <StackPanel>
+                            <TextBlock Text="GATE" Style="{StaticResource Eyebrow}" Margin="0,0,0,8"/>
+                            <ItemsControl ItemsSource="{Binding Changes}" IsTabStop="False"/>
+                        </StackPanel>
+                    </Border>
+
+                    <ItemsControl ItemsSource="{Binding SummaryLines}" IsTabStop="False" Margin="0,0,0,14">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" Margin="0,0,0,4"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Text="THINGS TO CHECK" Style="{StaticResource Eyebrow}" Margin="0,0,0,8"/>
+                    <ItemsControl ItemsSource="{Binding AdviceLines}" IsTabStop="False"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- 5. Something went wrong -->
+            <StackPanel Visibility="{Binding IsFailed, Converter={StaticResource BoolToVis}}" VerticalAlignment="Center">
+                <TextBlock Text="Calibration could not finish" FontSize="22" FontWeight="Bold" Margin="0,0,0,10"/>
+                <TextBlock Text="{Binding ErrorText}" FontSize="15"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Buttons -->
+        <DockPanel Grid.Row="3" Margin="0,18,0,0" LastChildFill="False">
+            <Button DockPanel.Dock="Left" Content="Cancel" Command="{Binding CancelCommand}" IsCancel="True"/>
+
+            <Button DockPanel.Dock="Right" Content="Start" Command="{Binding StartCommand}" Style="{StaticResource RunButton}"
+                    Visibility="{Binding IsIntro, Converter={StaticResource BoolToVis}}" IsDefault="True"/>
+            <Button DockPanel.Dock="Right" Content="Skip this step" Command="{Binding SkipCommand}"
+                    Visibility="{Binding CanSkip, Converter={StaticResource BoolToVis}}"/>
+            <Button DockPanel.Dock="Right" Content="Apply to this profile" Command="{Binding ApplyCommand}" Style="{StaticResource RunButton}"
+                    Visibility="{Binding IsResult, Converter={StaticResource BoolToVis}}" IsDefault="True" MinWidth="150"/>
+            <Button DockPanel.Dock="Right" Content="Start over" Command="{Binding RedoCommand}" Margin="0,0,8,0"
+                    Visibility="{Binding IsResult, Converter={StaticResource BoolToVis}}"/>
+            <Button DockPanel.Dock="Right" Content="Try again" Command="{Binding RedoCommand}" Style="{StaticResource RunButton}"
+                    Visibility="{Binding IsFailed, Converter={StaticResource BoolToVis}}"/>
+        </DockPanel>
+    </Grid>
+</Window>

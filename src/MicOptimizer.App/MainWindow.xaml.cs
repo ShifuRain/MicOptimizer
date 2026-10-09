@@ -15,6 +15,7 @@ public partial class MainWindow : Window
             Confirm = (title, message) => Prompt.Confirm(this, title, message),
         };
         ViewModel.Tick += Trace.Push;
+        ViewModel.CalibrationRequested += OpenCalibration;
         DataContext = ViewModel;
 
         // While hidden in the tray nobody can see the meters, so the view model skips that work.
@@ -41,6 +42,19 @@ public partial class MainWindow : Window
     {
         if (IsVisible && WindowState != WindowState.Minimized) Hide();
         else ShowFromTray();
+    }
+
+    /// <summary>From the tray menu: bring the window up and open the calibration wizard over it.</summary>
+    public void StartCalibration()
+    {
+        ShowFromTray();
+        ViewModel.RequestCalibration();
+    }
+
+    private void OpenCalibration()
+    {
+        var wizard = new CalibrationWindow(ViewModel) { Owner = this };
+        wizard.ShowDialog();
     }
 
     public void ExitApp()

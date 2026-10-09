@@ -7,7 +7,11 @@ HOW TO USE IT
 1. Open Mic Optimizer from the tray icon (near the clock; on Windows 11 it may be under the ^ arrow, drag it out to keep it visible).
 2. If you are not sure which input your microphone is on, press "Find my mic" and speak for 3 seconds.
 3. In Discord, OBS, Teams or your recorder, choose "CABLE Output (VB-Audio Virtual Cable)" as the microphone.
-4. Turn off the Direct Monitor button on your audio interface if you want to hear only the processed sound in your headphones.
+4. Press "Calibrate..." to set the gate for your room and voice (about 40 seconds).
+5. Turn off the Direct Monitor button on your audio interface if you want to hear only the processed sound in your headphones.
+
+COMMAND LINE
+If you ticked "Add Mic Optimizer to my PATH", open a NEW terminal window (windows that were already open will not see the change) and type MicOptimizer to start it, or MicOptimizer --background to start it hidden in the tray. You can also switch this on or off any time from the tray icon's menu. Uninstalling removes it again.
 
 Closing the window keeps Mic Optimizer running in the tray. Use the tray icon's menu, Exit, to quit it completely.
 

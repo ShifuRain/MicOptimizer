@@ -72,6 +72,103 @@ if (args.Length > 0 && args[0] == "latinfo")
     return;
 }
 
+if (args.Length > 0 && args[0] == "pathcheck")
+{
+    // Adds and removes a dummy folder on the REAL user PATH (including the change broadcast), then checks it is restored exactly.
+    string RawPath() => (string)Microsoft.Win32.Registry.CurrentUser.OpenSubKey("Environment")!
+        .GetValue("Path", "", Microsoft.Win32.RegistryValueOptions.DoNotExpandEnvironmentNames)!;
+    string before = RawPath();
+    var userPath = new MicOptimizer.Core.PathSetup.UserPath();
+    const string dummy = @"C:\MicOptimizer-pathcheck-dummy";
+    try
+    {
+        Console.WriteLine($"added: {userPath.Add(dummy)}  contains: {userPath.Contains(dummy)}  added again (should be False): {userPath.Add(dummy)}");
+        Console.WriteLine($"present in the registry value: {RawPath().Contains(dummy)}");
+    }
+    finally
+    {
+        Console.WriteLine($"removed: {userPath.Remove(dummy)}  contains afterwards: {userPath.Contains(dummy)}");
+        Console.WriteLine($"PATH restored exactly: {RawPath() == before}");
+    }
+    return;
+}
+
+if (args.Length > 0 && args[0] == "mutetest")
+{
+    // Does AudioEngine.OutputMuted really silence what arrives on CABLE Output? (This is what keeps calibration off a call.)
+    using var en = new NAudio.CoreAudioApi.MMDeviceEnumerator();
+    var cabIn = en.EnumerateAudioEndPoints(NAudio.CoreAudioApi.DataFlow.Render, NAudio.CoreAudioApi.DeviceState.Active)
+        .First(d => d.FriendlyName.StartsWith("CABLE Input", StringComparison.OrdinalIgnoreCase));
+    var cabOut = en.EnumerateAudioEndPoints(NAudio.CoreAudioApi.DataFlow.Capture, NAudio.CoreAudioApi.DeviceState.Active)
+        .First(d => d.FriendlyName.StartsWith("CABLE Output", StringComparison.OrdinalIgnoreCase));
+
+    float peak = 0;
+    using var detector = new NAudio.Wave.WasapiRecorderBuilder().WithDevice(cabOut).WithEventSync().WithLowLatency(true).Build();
+    int ch = detector.WaveFormat.Channels;
+    detector.DataAvailable += (buffer, flags, devicePosition, qpcPosition) =>
+    {
+        for (int i = 0; i + 4 <= buffer.Length; i += 4 * ch) peak = MathF.Max(peak, MathF.Abs(BitConverter.ToSingle(buffer.Slice(i, 4))));
+    };
+    detector.StartRecording();
+
+    using var eng = new AudioEngine();
+    eng.StartOutputOnly(cabIn.ID, c => c.Bypass = true);
+    var block = new float[480];
+    long n = 0;
+    Timer1ms.Enable();
+    var clock = System.Diagnostics.Stopwatch.StartNew();
+    foreach (var (label, muted) in new[] { ("live", false), ("MUTED", true), ("live again", false) })
+    {
+        eng.OutputMuted = muted;
+        peak = 0;
+        long until = n + 300;                                         // 3 seconds of 10 ms blocks
+        double settleUntil = 0;
+        while (n < until)
+        {
+            while (clock.Elapsed.TotalMilliseconds < n * 10) Thread.Sleep(1);
+            for (int i = 0; i < block.Length; i++) block[i] = 0.1f * MathF.Sin(2 * MathF.PI * 1000f * (n * 480 + i) / 48000f);   // -20 dBFS tone
+            eng.Feed(block);
+            n++;
+            if (n == until - 250) peak = 0;                           // ignore the first 0.5 s after switching (buffered audio drains)
+        }
+        Console.WriteLine($"  {label,-10}: peak on CABLE Output = {Db.ToDb(peak),7:0.0} dBFS   (tone sent at -20 dBFS)");
+    }
+    detector.StopRecording();
+    return;
+}
+
+if (args.Length > 0 && args[0] == "autocal")
+{
+    // Runs the in-app calibration algorithm on the recordings made by `calibrate`.
+    var rec = new MicOptimizer.Core.Calibration.CalibrationRecording(48000);
+    foreach (var phase in Enum.GetValues<MicOptimizer.Core.Calibration.CalibrationPhase>())
+    {
+        string path = $"calibration/{phase.ToString().ToLowerInvariant()}.wav";
+        if (!File.Exists(path)) continue;
+        if (args.Contains("skip-" + phase.ToString().ToLowerInvariant())) continue;
+        using var r = new NAudio.Wave.WaveFileReader(path);
+        var l = new List<float>(); float[] f;
+        while ((f = r.ReadNextSampleFrame()) is { Length: > 0 }) l.Add(f[0]);
+        rec.Phases[phase] = l.ToArray();
+    }
+    var sw = System.Diagnostics.Stopwatch.StartNew();
+    var analysis = MicOptimizer.Core.Calibration.GateCalibrator.Analyze(rec, new MicOptimizer.Core.Profiles.Profile());
+    Console.WriteLine($"analysis took {sw.Elapsed.TotalSeconds:0.0} s for {analysis.Candidates.Count} candidates (phases: {string.Join(", ", rec.Phases.Keys)})");
+    if (analysis.Error is not null) { Console.WriteLine("ERROR: " + analysis.Error); return; }
+    foreach (var bias in Enum.GetValues<MicOptimizer.Core.Calibration.CalibrationBias>())
+    {
+        var res = analysis.Choose(bias);
+        var c = res.Chosen;
+        Console.WriteLine($"\n[{bias}] open {res.GateOpenDb:0} dB, close {res.GateCloseDb:0} dB, hold {res.GateHoldMs:0} ms   | silence open {c.SilenceOpenPercent:0}%, typing open {c.TypingOpenPercent:0}%, whisper kept {c.WhisperKeptPercent:0}%, speech kept {c.SpeechKeptPercent:0}%, shout kept {c.ShoutKeptPercent:0}%, gap {c.GapDb:0.0} dB");
+        if (bias == MicOptimizer.Core.Calibration.CalibrationBias.Balanced)
+        {
+            foreach (var line in res.Summary) Console.WriteLine("   - " + line);
+            foreach (var a in res.Advice) Console.WriteLine($"   [{a.Severity}] {a.Text}");
+        }
+    }
+    return;
+}
+
 if (args.Length > 0 && args[0] == "latency")
 {
     Timer1ms.Enable();

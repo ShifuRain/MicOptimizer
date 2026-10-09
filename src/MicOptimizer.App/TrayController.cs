@@ -1,5 +1,7 @@
 using System.ComponentModel;
+using System.IO;
 using System.Runtime.InteropServices;
+using MicOptimizer.Core.PathSetup;
 using Drawing = System.Drawing;
 using Drawing2D = System.Drawing.Drawing2D;
 using WinForms = System.Windows.Forms;
@@ -16,7 +18,7 @@ public sealed class TrayController : IDisposable
     private readonly MainViewModel _vm;
     private readonly WinForms.NotifyIcon _icon;
     private readonly Dictionary<State, Drawing.Icon> _icons;
-    private readonly WinForms.ToolStripMenuItem _toggleItem, _bypassItem, _startupItem;
+    private readonly WinForms.ToolStripMenuItem _toggleItem, _bypassItem, _startupItem, _pathItem;
     private readonly WinForms.ToolStripMenuItem _profilesItem;
 
     public TrayController(MainWindow window, MainViewModel vm)
@@ -39,14 +41,19 @@ public sealed class TrayController : IDisposable
         _toggleItem = new WinForms.ToolStripMenuItem("Start processing", null, (_, _) => _vm.ToggleRunCommand.Execute(null));
         _bypassItem = new WinForms.ToolStripMenuItem("Bypass (send mic unprocessed)", null, (_, _) => _vm.Bypass = !_vm.Bypass);
         _profilesItem = new WinForms.ToolStripMenuItem("Profile");
+        var calibrate = new WinForms.ToolStripMenuItem("Calibrate…", null, (_, _) => _window.StartCalibration());
         _startupItem = new WinForms.ToolStripMenuItem("Start with Windows", null, (_, _) => ToggleStartup());
+        _pathItem = new WinForms.ToolStripMenuItem("Add to PATH (run from a terminal)", null, (_, _) => TogglePath())
+        {
+            ToolTipText = "Lets you type MicOptimizer in a terminal. Changes your user PATH only.",
+        };
         var exit = new WinForms.ToolStripMenuItem("Exit", null, (_, _) => _window.ExitApp());
 
         menu.Items.AddRange(new WinForms.ToolStripItem[]
         {
             open, new WinForms.ToolStripSeparator(),
-            _toggleItem, _bypassItem, _profilesItem, new WinForms.ToolStripSeparator(),
-            _startupItem, new WinForms.ToolStripSeparator(), exit,
+            _toggleItem, _bypassItem, _profilesItem, calibrate, new WinForms.ToolStripSeparator(),
+            _startupItem, _pathItem, new WinForms.ToolStripSeparator(), exit,
         });
         menu.Opening += (_, _) => RefreshMenu();
 
@@ -93,6 +100,7 @@ public sealed class TrayController : IDisposable
         _toggleItem.Text = _vm.IsRunning ? "Stop processing" : "Start processing";
         _bypassItem.Checked = _vm.Bypass;
         _startupItem.Checked = StartupRegistration.IsEnabled;
+        _pathItem.Checked = new UserPath().Contains(AppFolder);
 
         _profilesItem.DropDownItems.Clear();
         foreach (var profile in _vm.Profiles)
@@ -107,6 +115,27 @@ public sealed class TrayController : IDisposable
     private void ToggleStartup()
     {
         _vm.StartWithWindows = !StartupRegistration.IsEnabled;
+    }
+
+    /// <summary>The folder MicOptimizer.exe runs from: the install folder for an installed copy.</summary>
+    private static string AppFolder => AppContext.BaseDirectory.TrimEnd('\\', '/');
+
+    private void TogglePath()
+    {
+        try
+        {
+            var path = new UserPath();
+            bool nowOnPath = !path.Contains(AppFolder);
+            if (nowOnPath) path.Add(AppFolder); else path.Remove(AppFolder);
+            _icon.ShowBalloonTip(5000, nowOnPath ? "Added to your PATH" : "Removed from your PATH",
+                nowOnPath ? "Open a new terminal window and type MicOptimizer to start it. Windows that were already open will not see the change."
+                          : "New terminal windows will no longer find MicOptimizer by name.",
+                WinForms.ToolTipIcon.Info);
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+        {
+            _icon.ShowBalloonTip(5000, "Could not change your PATH", "Windows did not allow this account to edit its environment settings.", WinForms.ToolTipIcon.Warning);
+        }
     }
 
     /// <summary>Draws the app mark (waveform bars on a rounded tile) in the colours for a given state.</summary>

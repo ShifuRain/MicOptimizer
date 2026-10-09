@@ -3,12 +3,13 @@ using System.IO;
 using System.Windows.Input;
 using System.Windows.Threading;
 using MicOptimizer.Audio;
+using MicOptimizer.Core.Calibration;
 using MicOptimizer.Core.Dsp;
 using MicOptimizer.Core.Profiles;
 
 namespace MicOptimizer.App.ViewModels;
 
-public sealed class MainViewModel : ObservableObject, IDisposable
+public sealed class MainViewModel : ObservableObject, IDisposable, ICalibrationHost
 {
     private const float MeterFloorDb = -70f;
 
@@ -51,6 +52,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         DeleteCommand = new RelayCommand(Delete, () => !IsBuiltIn);
         FindMicCommand = new RelayCommand(async () => await FindMic(), () => SelectedInput is not null);
         RefreshDevicesCommand = new RelayCommand(() => RefreshDevices(keepSelection: true));
+        CalibrateCommand = new RelayCommand(RequestCalibration);
 
         BuildSections();
         LoadProfiles(_settings.LastProfile);
@@ -83,6 +85,46 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public bool UiActive { get; set; } = true;
 
     public bool CableMissing { get => _cableMissing; private set => Set(ref _cableMissing, value); }
+
+    // ---- calibration ----
+
+    /// <summary>Raised when the calibration wizard should open; the window shows it.</summary>
+    public event Action? CalibrationRequested;
+    public ICommand CalibrateCommand { get; }
+
+    /// <summary>Opens the wizard. It needs live audio, so processing is started first if it isn't running.</summary>
+    public void RequestCalibration()
+    {
+        if (!IsRunning) { _wantRunning = true; Start(); }
+        if (!IsRunning)
+        {
+            Status = "Calibration needs the microphone running. Choose a microphone and an output, then try again.";
+            return;
+        }
+        CalibrationRequested?.Invoke();
+    }
+
+    public int EngineSampleRate => _engine.SampleRate;
+
+    /// <summary>A copy of the settings being edited right now (the calibration measures through these).</summary>
+    public Profile WorkingProfileSnapshot() => _working.Clone();
+
+    /// <summary>Listens to the raw microphone, optionally silencing the output so a call doesn't hear the test sounds.</summary>
+    public void SetCalibrationCapture(AudioEngine.InputTapHandler? tap, bool muteOutput)
+    {
+        _engine.InputTap = tap;
+        _engine.OutputMuted = muteOutput;
+    }
+
+    /// <summary>Puts the calibrated gate settings into the profile being edited, which then shows as Edited.</summary>
+    public void ApplyCalibration(CalibrationResult result)
+    {
+        result.ApplyTo(_working);
+        IsModified = true;
+        foreach (var s in Sections) s.Refresh();
+        ApplyLive();
+        Status = "Calibration applied to the current profile. Press Save to keep it, or Revert to undo.";
+    }
 
     // ---- latency ----
 

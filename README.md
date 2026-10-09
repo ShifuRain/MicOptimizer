@@ -30,6 +30,7 @@ mic ─▶ rumble cut ─▶ noise removal ─▶ gate ─▶ tone ─▶ auto l
 - **Profiles**: Podcast, Whisper / ASMR, Loud / Gaming and Flat. Edit any of them, then Save, Save as, Revert or Delete. Changes apply live while you drag a slider. Profiles are JSON files in `%APPDATA%\MicOptimizer\profiles`.
 - **Tray**: closing the window keeps processing in the tray. The menu has Start/Stop, Bypass, a profile switcher and Start with Windows.
 - **Start with Windows**: starts hidden in the tray at sign-in and reconnects by itself if your interface or the virtual cable is not ready yet, or is unplugged and plugged back in.
+- **Calibrate…** (window button or tray menu): a 40-second guided wizard that measures your room, keyboard and voice and sets the gate for you (see [Calibration](#calibration)).
 - **Find my mic**: speak for three seconds and it picks the right input channel of your interface.
 - **Latency readout**: shows exactly where the milliseconds go (see [Latency](#latency)).
 
@@ -46,6 +47,18 @@ mic ─▶ rumble cut ─▶ noise removal ─▶ gate ─▶ tone ─▶ auto l
 
 Or just run it without installing: `dotnet run --project src/MicOptimizer.App`.
 
+### Installer options
+
+| Option | Default | What it does |
+|---|---|---|
+| Start Mic Optimizer hidden in the tray when I sign in | on | Adds a per-user sign-in entry that starts the app with `--background` |
+| Create a desktop shortcut | off | |
+| **Add Mic Optimizer to my PATH** | off | Appends the install folder to your **user** PATH (no administrator rights, the machine PATH is never touched), so `MicOptimizer` works in any new terminal |
+
+The PATH option never adds a duplicate, leaves every other entry (including `%VARIABLES%`) exactly as written, and is removed again when you uninstall. The tray menu has the same switch (*Add to PATH*), which also works without the installer. Terminals that were already open do not see the change; open a new one.
+
+From a terminal: `MicOptimizer` opens the window, and `MicOptimizer --background` starts it hidden in the tray. A second launch just brings up the running copy.
+
 ## Quick start
 
 1. Install VB-Cable, then open Mic Optimizer.
@@ -53,9 +66,30 @@ Or just run it without installing: `dotnet run --project src/MicOptimizer.App`.
 3. Leave **Send to** on *CABLE Input*.
 4. In Discord, OBS, Teams or your recorder, choose **CABLE Output (VB-Audio Virtual Cable)** as the microphone.
 5. Turn off the *Direct Monitor* button on your interface if you want to hear only the processed sound in your headphones.
-6. Pick a profile. Use **Bypass** to compare against the raw mic.
+6. Press **Calibrate…** so the gate suits your room and voice (about 40 seconds).
+7. Pick a profile. Use **Bypass** to compare against the raw mic.
 
 On Windows 11 new tray icons start collapsed under the `^` arrow; drag the icon out once to keep it visible.
+
+## Calibration
+
+Every room, keyboard and voice is different, so the gate's thresholds are worth measuring rather than guessing. **Calibrate…** walks through up to five short steps, each with a live level meter and a countdown:
+
+| Step | Length | |
+|---|---|---|
+| Quiet room | 5 s | required |
+| Typing and clicking | 6 s | optional |
+| Whisper | 6 s | optional |
+| Normal voice | 8 s | required |
+| Loud | 5 s | optional |
+
+While it listens the output to VB-Cable is **silenced**, so a call or stream never hears the test sounds. The recordings stay in memory and are discarded afterwards.
+
+It then runs your recordings through the same front of the chain the live audio takes (input gain, rumble cut, noise removal) and tries about a hundred gate settings on them with the real gate. A setting must stay shut in the quiet room and keep nearly all of your voiced speech and shouting. Among those, it keeps as much of the whisper as it can while letting as little typing through as it can. When your typing and whispers overlap, you choose whether *Keep quiet speech*, *Balanced* or *Block more noise* should win; the choice only appears when it makes a difference for your recordings.
+
+The result page shows the old and new gate values side by side. **Apply** puts them into the profile you are editing, marked *Edited*, so you can Save, Save as or Revert. Only the gate's open threshold, close threshold and hold time change. The page also gives plain advice from what it measured, for example "your voice is quiet at the input, turn the interface gain up by about 12 dB", "your loudest sounds clipped", or "your voice is only 14 dB above the room noise, move the mic closer".
+
+Validated two ways: on the author's real recordings it chose settings within 2 dB of what took a long manual tuning session, and unit tests cover synthetic rooms, voices, keyboards and whispers. It calibrates the gate only; the other stages keep the profile's values.
 
 ## Latency
 
@@ -85,7 +119,7 @@ Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download) on Windows.
 
 ```powershell
 dotnet build
-dotnet test                       # 28 tests: DSP stages, profiles, the elastic buffer
+dotnet test                       # 56 tests: DSP stages, profiles, the elastic buffer, calibration, PATH editing
 powershell -ExecutionPolicy Bypass -File build-installer.ps1   # tests, publish, installer
 ```
 
@@ -94,7 +128,7 @@ powershell -ExecutionPolicy Bypass -File build-installer.ps1   # tests, publish,
 ### Project layout
 
 ```
-src/MicOptimizer.Core    DSP stages, the processing chain, profiles (no audio devices, fully testable)
+src/MicOptimizer.Core    DSP stages, the processing chain, profiles, calibration (no audio devices, fully testable)
 src/MicOptimizer.Audio   WASAPI and ASIO capture, the render path, the elastic buffer, latency accounting
 src/MicOptimizer.App     WPF window, tray, settings, start-with-Windows
 tests/                   xUnit tests (synthetic tones, drift simulations)
@@ -110,8 +144,11 @@ installer/               Inno Setup script
 |---|---|
 | *(none)* | List input and output devices |
 | `run [seconds] [asio] [bypass]` | Run the engine with a text meter and glitch counter |
-| `calibrate` | Guided recording of silence, typing, whisper, speech and shouting, saved to `calibration/` (git-ignored) |
+| `calibrate` | Records silence, typing, whisper, speech and shouting to `calibration/` (git-ignored). This is the developer version; the app has its own wizard |
+| `autocal` | Runs the app's calibration algorithm on those recordings and prints the result for each bias |
 | `offline`, `tune`, `dyn` | Run the recordings through the chain and compare or search settings |
+| `mutetest` | Checks that muting really silences what arrives on CABLE Output |
+| `pathcheck` | Adds and removes a dummy folder on your real user PATH and checks it is restored exactly |
 | `meter`, `diag` | Windows' own level meter versus raw capture, per channel |
 | `latency`, `jitter` | Click-to-click delay of the old and new pipelines, the cable-only floor, callback timing |
 | `latinfo`, `asioinfo` | What each device and ASIO driver supports |
@@ -121,7 +158,8 @@ The calibration recordings are your own voice and are never committed (`*.wav` a
 ## Status and limits
 
 - **Tested on one setup**: Blue Spark + Focusrite Scarlett Solo (Focusrite USB ASIO) + VB-Cable on Windows 11. The defaults were tuned against that voice and room; expect to adjust the gate thresholds for yours.
-- Only the **Podcast** profile was tuned against recordings. Whisper / ASMR and Loud / Gaming are reasoned starting points.
+- Only the **Podcast** profile was tuned against recordings. Whisper / ASMR and Loud / Gaming are reasoned starting points. Run **Calibrate…** to fit the gate to your own room and voice.
+- Calibration has been tried with the author's voice and with synthetic sounds; the in-app wizard has not yet been run by other people on other microphones.
 - **Mono**: one input channel is used. 48 kHz only for noise removal.
 - WASAPI exclusive mode does not work with the Focusrite driver (it rejects the formats), so it is not offered.
 - It is a tray app, not a Windows Service: services run in session 0 and Windows often blocks microphone access there.
