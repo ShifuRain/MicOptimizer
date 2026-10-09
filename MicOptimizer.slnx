@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MicOptimizer.App/MicOptimizer.App.csproj" />
+    <Project Path="src/MicOptimizer.Audio/MicOptimizer.Audio.csproj" />
+    <Project Path="src/MicOptimizer.Core/MicOptimizer.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MicOptimizer.Tests/MicOptimizer.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/MicOptimizer.Probe/MicOptimizer.Probe.csproj" />
+  </Folder>
+</Solution>

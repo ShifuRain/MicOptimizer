@@ -1,0 +1,14 @@
+Mic Optimizer is installed.
+
+BEFORE YOU START
+Mic Optimizer sends your processed microphone to a virtual audio device called VB-Cable. If you have not installed it yet, get it free from https://vb-audio.com/Cable/ (restart Windows if the installer asks). The app shows a banner with a download button when VB-Cable is missing.
+
+HOW TO USE IT
+1. Open Mic Optimizer from the tray icon (near the clock; on Windows 11 it may be under the ^ arrow, drag it out to keep it visible).
+2. If you are not sure which input your microphone is on, press "Find my mic" and speak for 3 seconds.
+3. In Discord, OBS, Teams or your recorder, choose "CABLE Output (VB-Audio Virtual Cable)" as the microphone.
+4. Turn off the Direct Monitor button on your audio interface if you want to hear only the processed sound in your headphones.
+
+Closing the window keeps Mic Optimizer running in the tray. Use the tray icon's menu, Exit, to quit it completely.
+
+Your profiles and settings are stored in %APPDATA%\MicOptimizer and are kept when you uninstall.
