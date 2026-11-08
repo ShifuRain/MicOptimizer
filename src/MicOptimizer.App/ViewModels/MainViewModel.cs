@@ -130,23 +130,23 @@ public sealed class MainViewModel : ObservableObject, IDisposable, ICalibrationH
 
     public string[] LatencyChoices { get; } =
     {
-        "Lowest (ASIO input, switches to Standard if unavailable)",
-        "Standard (Windows audio)",
+        "Standard (Windows audio, recommended)",
+        "ASIO input (about 6 ms faster, experimental)",
     };
 
     public int LatencyModeIndex
     {
-        get => string.Equals(_settings.LatencyMode, "Standard", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+        get => string.Equals(_settings.LatencyMode, "Asio", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
         set
         {
-            _settings.LatencyMode = value == 1 ? "Standard" : "Lowest";
+            _settings.LatencyMode = value == 1 ? "Asio" : "Standard";
             _settings.Save();
             Raise();
             if (IsRunning) Start();
         }
     }
 
-    private LatencyMode RequestedMode => LatencyModeIndex == 0 ? LatencyMode.Lowest : LatencyMode.Standard;
+    private LatencyMode RequestedMode => LatencyModeIndex == 1 ? LatencyMode.Lowest : LatencyMode.Standard;
 
     private string _latencySummary = "";
     /// <summary>One line saying where the delay in this app comes from, refreshed while the window is open.</summary>

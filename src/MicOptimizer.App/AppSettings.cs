@@ -13,8 +13,9 @@ public sealed class AppSettings
     public string? LastProfile { get; set; }
     /// <summary>Start processing as soon as the app opens (when both devices are still present).</summary>
     public bool AutoStart { get; set; } = true;
-    /// <summary>"Lowest" (ASIO input, falls back automatically) or "Standard" (Windows low-latency audio).</summary>
-    public string LatencyMode { get; set; } = "Lowest";
+    /// <summary>"Standard" (Windows low-latency audio, the default) or "Asio" (the interface's ASIO driver, opt-in).
+    /// Older versions stored "Lowest" for ASIO as the default; that value is deliberately no longer honoured.</summary>
+    public string LatencyMode { get; set; } = "Standard";
     /// <summary>True once the "still running in the tray" balloon has been shown, so it only appears the first time.</summary>
     public bool TrayHintShown { get; set; }
 

@@ -95,7 +95,7 @@ Validated two ways: on the author's real recordings it chose settings within 2 d
 
 The window shows a live breakdown. Measured on the author's setup (Scarlett Solo, VB-Cable at its default setting):
 
-| | ASIO input | Windows audio |
+| | ASIO input (opt-in) | Windows audio (default) |
 |---|---|---|
 | Mic input | 3.9 ms | 10 ms |
 | Processing (noise removal 10 ms + limiter 1 ms) | 11 ms | 11 ms |
@@ -106,7 +106,7 @@ The window shows a live breakdown. Measured on the author's setup (Scarlett Solo
 How it gets there:
 
 - Windows' low-latency shared-mode streams with real-time thread priority.
-- An optional **ASIO input** (Latency mode *Lowest*, the default), which falls back to Windows audio automatically if the driver cannot be opened. Other apps could still record from and play to the interface while ASIO was open.
+- An optional, **experimental ASIO input** (Latency mode *ASIO input*, off by default), about 6 ms faster. It falls back to Windows audio automatically if the driver cannot be opened. It was the default in 1.0 to 1.2.1, but a user reported the interface's audio becoming distorted after a CPU spike until the interface was reconnected, so it is now opt-in (see [Status and limits](#status-and-limits)).
 - A small drift-correcting buffer between the two devices' clocks. When the clocks disagree it drops or repeats a single sample every few hundred samples (inaudible on speech), so the delay neither grows nor runs dry. Its cushion starts at about 6 ms and grows only if audio ever runs dry.
 
 **The largest remaining delay belongs to VB-Cable.** A click written straight into CABLE Input takes about 60 ms to appear on CABLE Output with none of this app involved. VB-Cable's control panel has a *Max Latency* setting (the **Reduce VB-Cable delay** button opens it; changing it needs administrator rights). The `latency` command of the probe tool prints the cable-only number so you can see the effect of changing it.
@@ -164,6 +164,7 @@ The calibration recordings are your own voice and are never committed (`*.wav` a
 - WASAPI exclusive mode does not work with the Focusrite driver (it rejects the formats), so it is not offered.
 - It is a tray app, not a Windows Service: services run in session 0 and Windows often blocks microphone access there.
 - The installer is unsigned.
+- **ASIO is experimental.** With a 64-sample ASIO buffer, a CPU spike may leave some drivers distorted until the interface is reconnected. Use the default *Standard* mode if you see that.
 
 ## Credits and license
 
