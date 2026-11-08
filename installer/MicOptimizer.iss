@@ -5,7 +5,7 @@
 ; ID, another name and another startup-entry name. build-installer.ps1 never uses this; it exists for testing.
 
 #define MyAppName "Mic Optimizer"
-#define MyAppVersion "1.2.2"
+#define MyAppVersion "1.2.3"
 #define MyAppExe "MicOptimizer.exe"
 #define PublishDir "..\artifacts\publish"
 

@@ -99,7 +99,7 @@ public sealed class AudioEngine : IDisposable
         using var recorder = new WasapiRecorderBuilder().WithDevice(enumerator.GetDevice(inputId)).WithEventSync().Build();
         var fmt = recorder.WaveFormat;
         int channels = fmt.Channels, bytes = fmt.BitsPerSample / 8;
-        bool isFloat = fmt.Encoding == WaveFormatEncoding.IeeeFloat;
+        bool isFloat = IsFloat(fmt);
         var peaks = new float[channels];
 
         recorder.DataAvailable += (buffer, flags, devicePosition, qpcPosition) =>
@@ -221,7 +221,7 @@ public sealed class AudioEngine : IDisposable
 
         int channels = fmt.Channels, bytes = fmt.BitsPerSample / 8;
         int channel = Math.Clamp(inputChannel, 0, channels - 1);
-        bool isFloat = fmt.Encoding == WaveFormatEncoding.IeeeFloat;
+        bool isFloat = IsFloat(fmt);
         var elastic = _elastic!;
 
         recorder.DataAvailable += (buffer, flags, devicePosition, qpcPosition) =>
@@ -374,6 +374,14 @@ public sealed class AudioEngine : IDisposable
         foreach (var v in s) p = MathF.Max(p, MathF.Abs(v));
         return p;
     }
+
+    /// <summary>
+    /// True for 32-bit float audio. Windows reports most devices as WAVE_FORMAT_EXTENSIBLE, whose real sample type
+    /// is in the sub-format, so checking only the top-level encoding would misread float samples as integers.
+    /// </summary>
+    public static bool IsFloat(WaveFormat fmt) =>
+        fmt.Encoding == WaveFormatEncoding.IeeeFloat ||
+        (fmt is WaveFormatExtensible ext && ext.SubFormat == AudioMediaSubtypes.MEDIASUBTYPE_IEEE_FLOAT);
 
     private static float ReadSample(ReadOnlySpan<byte> b, int o, int bytes, bool isFloat)
     {

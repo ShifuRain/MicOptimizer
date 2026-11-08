@@ -119,7 +119,7 @@ Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download) on Windows.
 
 ```powershell
 dotnet build
-dotnet test                       # 56 tests: DSP stages, profiles, the elastic buffer, calibration, PATH editing
+dotnet test                       # 59 tests: DSP stages, profiles, the elastic buffer, calibration, PATH editing
 powershell -ExecutionPolicy Bypass -File build-installer.ps1   # tests, publish, installer
 ```
 
